@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defects List Record</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h2>Defects List Record Form</h2>
+    <form id="defectsForm">
+        <label>Defects Description:</label>
+        <div id="descriptions">
+            <input type="text" name="description[]" required>
+        </div>
+        <button type="button" onclick="addDescription()">Add More</button>
+        <br><br>
+        
+        <label>Defects Pictures:</label>
+        <div id="imageUploads">
+            <input type="file" class="image-input" name="images[]" multiple accept="image/*" required>
+        </div>
+        <button type="button" onclick="addImageUpload()">Add More</button>
+        <br><br>
+        
+        <label>Company:</label>
+        <input type="text" id="company" name="company" required>
+        <br><br>
+        
+        <label>Remarks:</label>
+        <textarea id="remarks" name="remarks" required></textarea>
+        <br><br>
+        
+        <button type="button" onclick="submitForm()">Submit</button>
+    </form>
+    
+    <script>
+        function addDescription() {
+            let div = document.createElement("div");
+            div.innerHTML = '<input type="text" name="description[]" required>';
+            document.getElementById("descriptions").appendChild(div);
+        }
+        
+        function addImageUpload() {
+            let div = document.createElement("div");
+            div.innerHTML = '<input type="file" class="image-input" name="images[]" multiple accept="image/*" required>';
+            document.getElementById("imageUploads").appendChild(div);
+        }
+        
+        async function submitForm() {
+            const form = document.getElementById("defectsForm");
+            const formData = new FormData(form);
+            
+            let data = {
+                descriptions: [],
+                company: formData.get("company"),
+                remarks: formData.get("remarks"),
+                images: []
+            };
+            
+            document.getElementsByName("description[]").forEach(input => {
+                data.descriptions.push(input.value);
+            });
+            
+            let files = document.querySelectorAll(".image-input");
+            files.forEach(input => {
+                Array.from(input.files).forEach(file => {
+                    let reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onload = function () {
+                        data.images.push(reader.result);
+                    }
+                });
+            });
+            
+            setTimeout(() => {
+                generatePDF(data);
+                saveToGoogleSheets(data);
+            }, 1000);
+        }
+        
+        function generatePDF(data) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Defects List Record", 10, 10);
+            
+            let y = 20;
+            data.descriptions.forEach((desc, index) => {
+                doc.text(`${index + 1}. ${desc}`, 10, y);
+                y += 10;
+            });
+            
+            doc.text(`Company: ${data.company}`, 10, y);
+            y += 10;
+            doc.text(`Remarks: ${data.remarks}`, 10, y);
+            y += 10;
+            
+            data.images.forEach((img, index) => {
+                doc.addImage(img, 'JPEG', 10, y, 50, 50);
+                y += 60;
+            });
+            
+            doc.save("Defects_Record.pdf");
+        }
+        
+        function saveToGoogleSheets(data) {
+            fetch("https://script.google.com/macros/s/AKfycbyC7EGkFUvyg-2cYI4AZHD4PYPfnXrTWix5vTZHlXW-huDpbGiFmuka8xE35OAcgCo5fQ/exec", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => alert("Data saved successfully!"))
+            .catch(error => console.error("Error:", error));
+        }
+    </script>
+</body>
+</html>
